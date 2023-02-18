@@ -61,6 +61,26 @@ window.addEventListener('load', function() {
         }
     }
 
+
+    class Obstacle {
+        constructor(game) {
+            this.game = game;
+            this.collisionX = Math.random() * this.game.width;
+            this.collisionY = Math.random() * this.game.height;
+            this.collisionRadius = 60;
+        }
+        draw(contexte) {
+            contexte.beginPath();
+            contexte.arc(this.collisionX, this.collisionY, 50, 0, Math.PI * 2);
+            contexte.save();
+            contexte.globalAlpha = 0.5;
+            contexte.fill();
+            contexte.restore();
+            contexte.stroke();
+        }
+    }
+
+
     // Définir la classe Game
     class Game {
         constructor(canvas){
@@ -68,6 +88,8 @@ window.addEventListener('load', function() {
             this.width = this.canvas.width;
             this.height = this.canvas.height;
             this.player = new Player(this);
+            this.numberOfObstacles = 5;
+            this.obstacle = []
             this.mouse = {
                 x: this.width * 0.5,
                 y: this.height * 0.5,
@@ -95,11 +117,38 @@ window.addEventListener('load', function() {
         render(contexte){
             this.player.draw(contexte);
             this.player.update();
+            this.obstacle.forEach(obstacle => {
+                obstacle.draw(contexte);
+            });
         }
-    }
+        init () {
+            let attemps = 0;
+            while (this.obstacle.length < this.numberOfObstacles && attemps < 500) {
+              let testObstacle = new Obstacle(this);
+              let overlap = false;
+              this.obstacle.forEach(obstacle => {
+                const dx = testObstacle.collisionX - obstacle.collisionX;
+                const dy = testObstacle.collisionY - obstacle.collisionY;
+                const distance = Math.hypot(dx, dy);
+                const sumOfRadii = testObstacle.collisionRadius + obstacle.collisionRadius;
+                if (distance < sumOfRadii) {
+                  overlap = true;
+                }
+              });
+              if (!overlap) {
+                this.obstacle.push(testObstacle);
+              }
+              overlap = false;
+              attemps++;
+            }
+          }
+          
+}
 
     // Créer une nouvelle instance de Game avec l'élément canvas comme argument
     const game = new Game(canvas);
+    game.init();
+    console.log(game);
 
 
 
