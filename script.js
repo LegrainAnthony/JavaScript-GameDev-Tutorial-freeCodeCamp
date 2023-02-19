@@ -55,6 +55,16 @@ window.addEventListener("load", function () {
       }
       this.collisionX += this.speedX * this.speedModifier;
       this.collisionY += this.speedY * this.speedModifier;
+      // collision avec les obstacles
+      this.game.obstacles.forEach(obstacle => {
+        let [collision, distance, sumOfRadius, dx, dy] = this.game.checkCollision(this, obstacle);
+         if (collision) {
+          const unit_x = dx / distance;
+          const unit_y = dy / distance;
+          this.collisionX = obstacle.collisionX + (sumOfRadius + 1) * unit_x;
+          this.collisionY = obstacle.collisionY + (sumOfRadius + 1) * unit_y;
+         }
+      });
     }
   }
   // Définir la classe Obstacle
@@ -64,10 +74,36 @@ window.addEventListener("load", function () {
       this.collisionX = Math.random() * this.game.width; // définit la position X aléatoire de l'obstacle dans la zone de jeu
       this.collisionY = Math.random() * this.game.height; // définit la position Y aléatoire de l'obstacle dans la zone de jeu
       this.collisionRadius = 60; // définit le rayon de collision de l'obstacle
+      this.image = document.getElementById("obstacles");
+      this.spriteWidth = 250;
+      this.spriteHeight = 250;
+      this.width = this.spriteWidth;
+      this.height = this.spriteHeight;
+      this.spriteX = this.collisionX - this.width * 0.5;
+      this.spriteY = this.collisionY - this.height * 0.5 - 70;
+      this.frameX = Math.floor(Math.random() * 4);
+      this.frameY = Math.floor(Math.random() * 3);
     }
     draw(contexte) {
+      contexte.drawImage(
+        this.image,
+        this.frameX * this.spriteWidth,
+        this.frameY * this.spriteHeight,
+        this.spriteWidth,
+        this.spriteHeight,
+        this.spriteX,
+        this.spriteY,
+        this.width,
+        this.height
+      );
       contexte.beginPath(); // indique que l'on va dessiner un nouveau chemin
-      contexte.arc(this.collisionX, this.collisionY, 50, 0, Math.PI * 2); // dessine un cercle avec un rayon de 50 pixels et avec un angle de 0 à 2*PI
+      contexte.arc(
+        this.collisionX,
+        this.collisionY,
+        this.collisionRadius,
+        0,
+        Math.PI * 2
+      ); // dessine un cercle avec un rayon de 50 pixels et avec un angle de 0 à 2*PI
       contexte.save(); // sauvegarde les propriétés actuelles du contexte de rendu
       contexte.globalAlpha = 0.5; // définit l'opacité du cercle
       contexte.fill(); // remplit le cercle avec la couleur actuelle du contexte de rendu
@@ -82,9 +118,10 @@ window.addEventListener("load", function () {
       this.canvas = canvas;
       this.width = this.canvas.width;
       this.height = this.canvas.height;
+      this.topMargin = 260;
       this.player = new Player(this); // crée un nouveau joueur avec l'instance de Game comme argument
-      this.numberOfObstacles = 5; // définit le nombre d'obstacles à créer
-      this.obstacle = []; // initialise un tableau d'obstacles vides
+      this.numberOfObstacles = 10; // définit le nombre d'obstacles à créer
+      this.obstacles = []; // initialise un tableau d'obstacles vides
       this.mouse = {
         x: this.width * 0.5, // définit la position X initiale de la souris au milieu de la zone de jeu
         y: this.height * 0.5, // définit la position Y initiale de la souris au milieu de la zone de jeu
@@ -112,36 +149,49 @@ window.addEventListener("load", function () {
     render(contexte) {
       this.player.draw(contexte); // dessine le joueur
       this.player.update(); // met à jour la position du joueur
-      this.obstacle.forEach((obstacle) => {
+      this.obstacles.forEach((obstacle) => {
         obstacle.draw(contexte); // dessine chaque obstacle dans le tableau d'obstacles
       });
     }
+    checkCollision(a, b) {
+      const dx = a.collisionX - b.collisionX;
+      const dy = a.collisionY - b.collisionY;
+      const distance = Math.hypot(dy, dx);
+      const sumOfRadius = a.collisionRadius + b.collisionRadius;
+      return [(distance < sumOfRadius), distance, sumOfRadius, dx, dy];
+    }
     init() {
-      let attemps = 0;
-      // Tant que le nombre d'obstacles est inférieur au nombre d'obstacles souhaité
-      // et que le nombre d'essais est inférieur à 500
-      while (this.obstacle.length < this.numberOfObstacles && attemps < 500) {
-        // Créer un nouvel obstacle
-        let testObstacle = new Obstacle(this);
-        let overlap = false;
-        // Vérifier si l'obstacle créé chevauche un obstacle existant
-        this.obstacle.forEach((obstacle) => {
+      let attempts = 0; // initialise le nombre d'essais à 0
+      while (this.obstacles.length < this.numberOfObstacles && attempts < 500) {
+        let testObstacle = new Obstacle(this); // crée un nouvel obstacle
+        let overlap = false; // initialise la variable overlap à false
+        this.obstacles.forEach((obstacle) => {
+          console.log(obstacle);
+          // vérifie si l'obstacle créé est en collision avec un autre obstacle
           const dx = testObstacle.collisionX - obstacle.collisionX;
           const dy = testObstacle.collisionY - obstacle.collisionY;
-          const distance = Math.hypot(dx, dy);
-          const sumOfRadii =
-            testObstacle.collisionRadius + obstacle.collisionRadius;
-          if (distance < sumOfRadii) {
+          const distance = Math.hypot(dy, dx);
+          const distanceBuffer = 150;
+          const sumOfRadius =
+            testObstacle.collisionRadius +
+            obstacle.collisionRadius +
+            distanceBuffer;
+          if (distance < sumOfRadius) {
+            // si l'obstacle est en collision avec un autre obstacle, on recommence la boucle
             overlap = true;
           }
         });
-        // Si l'obstacle ne chevauche aucun obstacle existant, l'ajouter à la liste d'obstacles
-        if (!overlap) {
-          this.obstacle.push(testObstacle);
+        const margin = testObstacle.collisionRadius * 2;
+        if (
+          !overlap &&
+          testObstacle.spriteX > 0 &&
+          testObstacle.spriteX < this.width - testObstacle.width &&
+          testObstacle.collisionY > this.topMargin + margin &&
+          testObstacle.collisionY < this.height - margin
+        ) {
+          this.obstacles.push(testObstacle); // si l'obstacle n'est pas en collision avec un autre obstacle, on l'ajoute au tableau d'obstacles
         }
-        // Réinitialiser la variable overlap et incrémenter le nombre d'essais
-        overlap = false;
-        attemps++;
+        attempts++;
       }
     }
   }
@@ -150,9 +200,6 @@ window.addEventListener("load", function () {
 
   // Appeler la méthode init pour initialiser le jeu
   game.init();
-
-  // Afficher l'objet game dans la console
-  console.log(game);
 
   // Définir la fonction animate qui sera appelée en continu pour mettre à jour le rendu du jeu
   function animate() {
