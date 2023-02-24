@@ -196,6 +196,10 @@ window.addEventListener("load", function () {
     }
   }
 
+  function randomIntFromRange(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+  }
+
   const game = new Game(canvas);
 
   // Appeler la méthode init pour initialiser le jeu
